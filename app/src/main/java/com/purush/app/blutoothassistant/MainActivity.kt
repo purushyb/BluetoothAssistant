@@ -14,15 +14,18 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -39,11 +42,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.purush.app.blutoothassistant.ui.theme.BlutoothAssistantTheme
 
 class MainActivity : ComponentActivity() {
@@ -68,9 +75,20 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun BluetoothHidScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    
     val isConnected by viewModel.isConnected.collectAsState()
     val isServiceRunning by viewModel.isServiceRunning.collectAsState()
     var hasPermissions by remember { mutableStateOf(false) }
+
+    LaunchedEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.onResume()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+    }
 
     val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         listOf(
@@ -167,28 +185,75 @@ fun BluetoothHidScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) 
         Spacer(modifier = Modifier.height(16.dp))
         Text(text = "Trackpad", style = MaterialTheme.typography.titleMedium)
 
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(200.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(Color.LightGray)
-                .pointerInput(Unit) {
-                    detectDragGestures { change, dragAmount ->
-                        change.consume()
-                        // Scale sensitivity if needed
-                        viewModel.moveMouse(dragAmount.x.toInt(), dragAmount.y.toInt())
-                    }
-                }
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { viewModel.mouseClick(true) },
-                        onDoubleTap = { viewModel.mouseClick(false) } // Right click on double tap for demo
-                    )
-                },
-            contentAlignment = Alignment.Center
         ) {
-            Text("Drag to move mouse\nTap to click\nDouble tap to R-click")
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .pointerInput(Unit) {
+                        var zoomAccumulator = 1f
+                        detectTransformGestures { _, pan, zoom, _ ->
+                            // Handle Mouse Movement (Pan)
+                            if (pan.x != 0f || pan.y != 0f) {
+                                viewModel.moveMouse(pan.x.toInt(), pan.y.toInt())
+                            }
+
+                            // Handle Zoom (Pinch)
+                            zoomAccumulator *= zoom
+                            if (zoomAccumulator > 1.2f) {
+                                viewModel.zoom(true) // Zoom In
+                                zoomAccumulator = 1f
+                            } else if (zoomAccumulator < 0.8f) {
+                                viewModel.zoom(false) // Zoom Out
+                                zoomAccumulator = 1f
+                            }
+                        }
+                    }
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = { viewModel.mouseClick(true) },
+                            onDoubleTap = { viewModel.mouseClick(false) } // Right click on double tap for demo
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Drag to move mouse\nTap to click\nDouble tap to R-click\nPinch to Zoom")
+            }
+
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .fillMaxHeight()
+                    .background(Color.Gray)
+            )
+
+            Box(
+                modifier = Modifier
+                    .width(50.dp)
+                    .fillMaxHeight()
+                    .background(Color.DarkGray.copy(alpha = 0.1f))
+                    .pointerInput(Unit) {
+                        var accumulatedY = 0f
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            accumulatedY += dragAmount.y
+                            val steps = -(accumulatedY / 60).toInt()
+                            if (steps != 0) {
+                                viewModel.scroll(steps)
+                                accumulatedY += (steps * 60) // Adding because steps is negative of accumulatedY/60
+                            }
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Scroll", modifier = Modifier.rotate(90f))
+            }
         }
     }
 }

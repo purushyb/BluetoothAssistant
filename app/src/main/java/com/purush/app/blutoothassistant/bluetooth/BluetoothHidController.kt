@@ -19,7 +19,8 @@ class BluetoothHidController(private val context: Context) {
     private val bluetoothManager: BluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
 
-    var onConnectionStateChanged: ((Boolean) -> Unit)? = null
+    var onConnectionStateChanged: ((Boolean, BluetoothDevice?) -> Unit)? = null
+    var onServiceConnected: (() -> Unit)? = null
 
     private val userExecutor = Executor { command -> command.run() }
 
@@ -37,10 +38,10 @@ class BluetoothHidController(private val context: Context) {
             Log.d(TAG, "onConnectionStateChanged: device=$device state=$state")
             if (state == BluetoothProfile.STATE_CONNECTED) {
                 hostDevice = device
-                onConnectionStateChanged?.invoke(true)
+                onConnectionStateChanged?.invoke(true, device)
             } else if (state == BluetoothProfile.STATE_DISCONNECTED) {
                 hostDevice = null
-                onConnectionStateChanged?.invoke(false)
+                onConnectionStateChanged?.invoke(false, device)
             }
         }
     }
@@ -51,6 +52,7 @@ class BluetoothHidController(private val context: Context) {
                 Log.d(TAG, "HID Device Proxy connected")
                 bluetoothHidDevice = proxy as BluetoothHidDevice
                 registerApp()
+                onServiceConnected?.invoke()
             }
         }
 
@@ -67,9 +69,25 @@ class BluetoothHidController(private val context: Context) {
             bluetoothAdapter.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE)
         }
     }
+    
+    @SuppressLint("MissingPermission")
+    fun connect(device: BluetoothDevice) {
+        Log.i("Purush", "Connecting to device ${device.name}")
+        bluetoothHidDevice?.connect(device)
+    }
 
     @SuppressLint("MissingPermission")
-    private fun registerApp() {
+    fun connect(address: String) {
+        try {
+            val device = bluetoothAdapter?.getRemoteDevice(address)
+            device?.let { connect(it) }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error connecting to device address: $address", e)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun registerApp() {
         val sdpSettings = BluetoothHidDeviceAppSdpSettings(
             "Bluetooth Assistant",
             "Android HID",
@@ -123,7 +141,7 @@ class BluetoothHidController(private val context: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    fun sendMouseReport(dx: Int, dy: Int, leftButton: Boolean, rightButton: Boolean) {
+    fun sendMouseReport(dx: Int, dy: Int, leftButton: Boolean, rightButton: Boolean, wheel: Int = 0) {
         val report = ByteArray(4)
         var buttons = 0
         if (leftButton) buttons = buttons or 1
@@ -132,7 +150,7 @@ class BluetoothHidController(private val context: Context) {
         report[0] = buttons.toByte()
         report[1] = dx.toByte()
         report[2] = dy.toByte()
-        report[3] = 0 // Wheel/Optional
+        report[3] = wheel.toByte()
 
         hostDevice?.let {
             bluetoothHidDevice?.sendReport(it, ID_MOUSE, report)
