@@ -46,11 +46,12 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.purush.app.blutoothassistant.ui.theme.BlutoothAssistantTheme
 
 class MainActivity : ComponentActivity() {
@@ -76,7 +77,7 @@ class MainActivity : ComponentActivity() {
 fun BluetoothHidScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    
+
     val isConnected by viewModel.isConnected.collectAsState()
     val isServiceRunning by viewModel.isServiceRunning.collectAsState()
     var hasPermissions by remember { mutableStateOf(false) }
@@ -154,9 +155,14 @@ fun BluetoothHidScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) 
 
         Button(
             onClick = {
-                val discoverableIntent = android.content.Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE).apply {
-                    putExtra(android.bluetooth.BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300)
-                }
+                val discoverableIntent =
+                    android.content.Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
+                        .apply {
+                            putExtra(
+                                android.bluetooth.BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION,
+                                300
+                            )
+                        }
                 context.startActivity(discoverableIntent)
             },
             enabled = hasPermissions
@@ -185,75 +191,109 @@ fun BluetoothHidScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) 
         Spacer(modifier = Modifier.height(16.dp))
         Text(text = "Trackpad", style = MaterialTheme.typography.titleMedium)
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color.LightGray)
-        ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .pointerInput(Unit) {
-                        var zoomAccumulator = 1f
-                        detectTransformGestures { _, pan, zoom, _ ->
-                            // Handle Mouse Movement (Pan)
-                            if (pan.x != 0f || pan.y != 0f) {
-                                viewModel.moveMouse(pan.x.toInt(), pan.y.toInt())
-                            }
+        MouseUi(
+            onScroll = { viewModel.scroll(it) },
+            moveMouse = { dx, dy ->
+                viewModel.moveMouse(dx, dy)
+            },
+            onZoom = { viewModel.zoom(it) },
+            onLeftClick = { viewModel.mouseClick(true) },
+            onRightClick = { viewModel.mouseClick(false) })
 
-                            // Handle Zoom (Pinch)
-                            zoomAccumulator *= zoom
-                            if (zoomAccumulator > 1.2f) {
-                                viewModel.zoom(true) // Zoom In
-                                zoomAccumulator = 1f
-                            } else if (zoomAccumulator < 0.8f) {
-                                viewModel.zoom(false) // Zoom Out
-                                zoomAccumulator = 1f
-                            }
+    }
+}
+
+@Composable
+private fun MouseUi(
+    modifier: Modifier = Modifier,
+    onScroll: (Int) -> Unit,
+    moveMouse: (Int, Int) -> Unit,
+    onZoom: (Boolean) -> Unit,
+    onLeftClick: () -> Unit,
+    onRightClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.LightGray)
+    )
+    {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .pointerInput(Unit) {
+                    var zoomAccumulator = 1f
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        // Handle Mouse Movement (Pan)
+                        if (pan.x != 0f || pan.y != 0f) {
+                            moveMouse(pan.x.toInt(), pan.y.toInt())
+                        }
+
+                        // Handle Zoom (Pinch)
+                        zoomAccumulator *= zoom
+                        if (zoomAccumulator > 1.2f) {
+                            onZoom(true) // Zoom In
+                            zoomAccumulator = 1f
+                        } else if (zoomAccumulator < 0.8f) {
+                            onZoom(false) // Zoom Out
+                            zoomAccumulator = 1f
                         }
                     }
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = { viewModel.mouseClick(true) },
-                            onDoubleTap = { viewModel.mouseClick(false) } // Right click on double tap for demo
-                        )
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Drag to move mouse\nTap to click\nDouble tap to R-click\nPinch to Zoom")
-            }
-
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .fillMaxHeight()
-                    .background(Color.Gray)
-            )
-
-            Box(
-                modifier = Modifier
-                    .width(50.dp)
-                    .fillMaxHeight()
-                    .background(Color.DarkGray.copy(alpha = 0.1f))
-                    .pointerInput(Unit) {
-                        var accumulatedY = 0f
-                        detectDragGestures { change, dragAmount ->
-                            change.consume()
-                            accumulatedY += dragAmount.y
-                            val steps = -(accumulatedY / 60).toInt()
-                            if (steps != 0) {
-                                viewModel.scroll(steps)
-                                accumulatedY += (steps * 60) // Adding because steps is negative of accumulatedY/60
-                            }
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Scroll", modifier = Modifier.rotate(90f))
-            }
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { onLeftClick },
+                        onDoubleTap = { onRightClick } // Right click on double tap for demo
+                    )
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Drag to move mouse\nTap to click\nDouble tap to R-click\nPinch to Zoom")
         }
+
+        Box(
+            modifier = Modifier
+                .width(1.dp)
+                .fillMaxHeight()
+                .background(Color.Gray)
+        )
+
+        Box(
+            modifier = Modifier
+                .width(50.dp)
+                .fillMaxHeight()
+                .background(Color.DarkGray.copy(alpha = 0.1f))
+                .pointerInput(Unit) {
+                    var accumulatedY = 0f
+                    detectDragGestures { change, dragAmount ->
+                        change.consume()
+                        accumulatedY += dragAmount.y
+                        val steps = -(accumulatedY / 60).toInt()
+                        if (steps != 0) {
+                            onScroll(steps)
+                            accumulatedY += (steps * 60) // Adding because steps is negative of accumulatedY/60
+                        }
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Scroll", modifier = Modifier.rotate(90f))
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun MouseUiPreview() {
+    BlutoothAssistantTheme {
+        MouseUi(
+            onScroll = {},
+            moveMouse = { x, y -> Unit },
+            onZoom = {},
+            onLeftClick = {},
+            onRightClick = {})
     }
 }
