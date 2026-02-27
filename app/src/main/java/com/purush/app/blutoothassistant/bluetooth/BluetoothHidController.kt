@@ -65,14 +65,11 @@ class BluetoothHidController(private val context: Context) {
     }
 
     fun init() {
-        if (bluetoothAdapter != null) {
-            bluetoothAdapter.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE)
-        }
+        bluetoothAdapter?.getProfileProxy(context, serviceListener, BluetoothProfile.HID_DEVICE)
     }
     
     @SuppressLint("MissingPermission")
     fun connect(device: BluetoothDevice) {
-        Log.i("Purush", "Connecting to device ${device.name}")
         bluetoothHidDevice?.connect(device)
     }
 

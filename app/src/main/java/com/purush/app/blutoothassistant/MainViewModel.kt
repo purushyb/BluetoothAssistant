@@ -7,6 +7,7 @@ import com.purush.app.blutoothassistant.bluetooth.BluetoothHidController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import androidx.core.content.edit
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -27,7 +28,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _isConnected.value = connected
             if (connected && device != null) {
                 lastDevice = device
-                prefs.edit().putString(LAST_DEVICE_ADDRESS_KEY, device.address).apply()
+                prefs.edit { putString(LAST_DEVICE_ADDRESS_KEY, device.address) }
             }
         }
         bluetoothHidController.onServiceConnected = {
