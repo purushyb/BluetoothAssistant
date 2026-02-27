@@ -74,10 +74,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendChar(char: Char) {
-        // Simple mapping for demo. Real mapping is complex.
-        val keycode = mapCharToHidCode(char)
+        val (modifier, keycode) = mapCharToHidCode(char)
         if (keycode != 0) {
-            bluetoothHidController.sendKeyboardReport(0, keycode)
+            bluetoothHidController.sendKeyboardReport(modifier, keycode)
             bluetoothHidController.releaseKey()
         }
     }
@@ -89,6 +88,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     
     fun sendBackspace() {
         bluetoothHidController.sendKeyboardReport(0, 42) // 42 is Backspace
+        bluetoothHidController.releaseKey()
+    }
+
+    fun sendMediaControl(controlBit: Int) {
+        bluetoothHidController.sendMediaControlReport(controlBit)
+        bluetoothHidController.releaseMediaControl()
+    }
+
+    fun sendSpecialKey(keycode: Int, modifier: Int = 0) {
+        bluetoothHidController.sendKeyboardReport(modifier, keycode)
         bluetoothHidController.releaseKey()
     }
 
@@ -118,46 +127,64 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         bluetoothHidController.sendMouseReport(0, 0, false, false)
     }
 
-    private fun mapCharToHidCode(c: Char): Int {
+    // Returns Pair(modifier, keycode)
+    private fun mapCharToHidCode(c: Char): Pair<Int, Int> {
+        val isShift = c.isUpperCase()
+        val shiftMod = if (isShift) 0x02 else 0x00
+        
         return when (c.lowercaseChar()) {
-            'a' -> 4
-            'b' -> 5
-            'c' -> 6
-            'd' -> 7
-            'e' -> 8
-            'f' -> 9
-            'g' -> 10
-            'h' -> 11
-            'i' -> 12
-            'j' -> 13
-            'k' -> 14
-            'l' -> 15
-            'm' -> 16
-            'n' -> 17
-            'o' -> 18
-            'p' -> 19
-            'q' -> 20
-            'r' -> 21
-            's' -> 22
-            't' -> 23
-            'u' -> 24
-            'v' -> 25
-            'w' -> 26
-            'x' -> 27
-            'y' -> 28
-            'z' -> 29
-            '1' -> 30
-            '2' -> 31
-            '3' -> 32
-            '4' -> 33
-            '5' -> 34
-            '6' -> 35
-            '7' -> 36
-            '8' -> 37
-            '9' -> 38
-            '0' -> 39
-            ' ' -> 44
-            else -> 0
+            'a' -> Pair(shiftMod, 4)
+            'b' -> Pair(shiftMod, 5)
+            'c' -> Pair(shiftMod, 6)
+            'd' -> Pair(shiftMod, 7)
+            'e' -> Pair(shiftMod, 8)
+            'f' -> Pair(shiftMod, 9)
+            'g' -> Pair(shiftMod, 10)
+            'h' -> Pair(shiftMod, 11)
+            'i' -> Pair(shiftMod, 12)
+            'j' -> Pair(shiftMod, 13)
+            'k' -> Pair(shiftMod, 14)
+            'l' -> Pair(shiftMod, 15)
+            'm' -> Pair(shiftMod, 16)
+            'n' -> Pair(shiftMod, 17)
+            'o' -> Pair(shiftMod, 18)
+            'p' -> Pair(shiftMod, 19)
+            'q' -> Pair(shiftMod, 20)
+            'r' -> Pair(shiftMod, 21)
+            's' -> Pair(shiftMod, 22)
+            't' -> Pair(shiftMod, 23)
+            'u' -> Pair(shiftMod, 24)
+            'v' -> Pair(shiftMod, 25)
+            'w' -> Pair(shiftMod, 26)
+            'x' -> Pair(shiftMod, 27)
+            'y' -> Pair(shiftMod, 28)
+            'z' -> Pair(shiftMod, 29)
+            '1', '!' -> Pair(if (c == '!') 0x02 else 0, 30)
+            '2', '@' -> Pair(if (c == '@') 0x02 else 0, 31)
+            '3', '#' -> Pair(if (c == '#') 0x02 else 0, 32)
+            '4', '$' -> Pair(if (c == '$') 0x02 else 0, 33)
+            '5', '%' -> Pair(if (c == '%') 0x02 else 0, 34)
+            '6', '^' -> Pair(if (c == '^') 0x02 else 0, 35)
+            '7', '&' -> Pair(if (c == '&') 0x02 else 0, 36)
+            '8', '*' -> Pair(if (c == '*') 0x02 else 0, 37)
+            '9', '(' -> Pair(if (c == '(') 0x02 else 0, 38)
+            '0', ')' -> Pair(if (c == ')') 0x02 else 0, 39)
+            '\n' -> Pair(0, 40)
+            '\b' -> Pair(0, 42)
+            '\t' -> Pair(0, 43)
+            ' ' -> Pair(0, 44)
+            '-', '_' -> Pair(if (c == '_') 0x02 else 0, 45)
+            '=', '+' -> Pair(if (c == '+') 0x02 else 0, 46)
+            '[', '{' -> Pair(if (c == '{') 0x02 else 0, 47)
+            ']', '}' -> Pair(if (c == '}') 0x02 else 0, 48)
+            '\\', '|' -> Pair(if (c == '|') 0x02 else 0, 49)
+            ';', ':' -> Pair(if (c == ':') 0x02 else 0, 51)
+            '\'', '"' -> Pair(if (c == '"') 0x02 else 0, 52)
+            '`', '~' -> Pair(if (c == '~') 0x02 else 0, 53)
+            ',', '<' -> Pair(if (c == '<') 0x02 else 0, 54)
+            '.', '>' -> Pair(if (c == '>') 0x02 else 0, 55)
+            '/', '?' -> Pair(if (c == '?') 0x02 else 0, 56)
+            else -> Pair(0, 0)
         }
     }
 }

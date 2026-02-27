@@ -154,10 +154,29 @@ class BluetoothHidController(private val context: Context) {
         }
     }
 
+    @SuppressLint("MissingPermission")
+    fun sendMediaControlReport(controlMap: Int) {
+        val report = ByteArray(1)
+        report[0] = controlMap.toByte()
+
+        hostDevice?.let {
+            bluetoothHidDevice?.sendReport(it, ID_MEDIA, report)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun releaseMediaControl() {
+        val report = ByteArray(1) // All zeros
+        hostDevice?.let {
+            bluetoothHidDevice?.sendReport(it, ID_MEDIA, report)
+        }
+    }
+
     companion object {
         const val TAG = "BluetoothHidController"
         const val ID_KEYBOARD = 1
         const val ID_MOUSE = 2
+        const val ID_MEDIA = 3
 
         val HID_REPORT_DESC = byteArrayOf(
             // Keyboard
@@ -223,6 +242,27 @@ class BluetoothHidController(private val context: Context) {
             0x95.toByte(), 0x03.toByte(), // Report Count (3)
             0x81.toByte(), 0x06.toByte(), // Input (Data, Variable, Relative) - X, Y, Wheel
             0xC0.toByte(), // End Collection
+            0xC0.toByte(), // End Collection
+
+            // Media Control
+            0x05.toByte(), 0x0C.toByte(), // Usage Page (Consumer)
+            0x09.toByte(), 0x01.toByte(), // Usage (Consumer Control)
+            0xA1.toByte(), 0x01.toByte(), // Collection (Application)
+            0x85.toByte(), ID_MEDIA.toByte(), // Report ID (3)
+            0x15.toByte(), 0x00.toByte(), // Logical Minimum (0)
+            0x25.toByte(), 0x01.toByte(), // Logical Maximum (1)
+            0x75.toByte(), 0x01.toByte(), // Report Size (1)
+            0x95.toByte(), 0x07.toByte(), // Report Count (7)
+            0x09.toByte(), 0xB5.toByte(), // Usage (Scan Next Track)
+            0x09.toByte(), 0xB6.toByte(), // Usage (Scan Previous Track)
+            0x09.toByte(), 0xB7.toByte(), // Usage (Stop)
+            0x09.toByte(), 0xCD.toByte(), // Usage (Play/Pause)
+            0x09.toByte(), 0xE2.toByte(), // Usage (Mute)
+            0x09.toByte(), 0xE9.toByte(), // Usage (Volume Increment)
+            0x09.toByte(), 0xEA.toByte(), // Usage (Volume Decrement)
+            0x81.toByte(), 0x02.toByte(), // Input (Data, Variable, Absolute)
+            0x95.toByte(), 0x01.toByte(), // Report Count (1)
+            0x81.toByte(), 0x01.toByte(), // Input (Constant) - Padding bit
             0xC0.toByte()  // End Collection
         )
     }

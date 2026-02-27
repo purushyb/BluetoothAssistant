@@ -11,23 +11,26 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Keyboard
+import androidx.compose.material.icons.filled.Mouse
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -41,18 +44,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.purush.app.blutoothassistant.ui.theme.BlutoothAssistantTheme
+
+enum class AppScreen { MAIN, FULL_KEYBOARD }
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -62,19 +69,58 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             BlutoothAssistantTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    BluetoothHidScreen(
-                        viewModel = viewModel,
-                        modifier = Modifier.padding(innerPadding)
+                val navController = rememberNavController()
+
+                Scaffold(topBar = {
+                    AppNavBar(
+                        navController,
+                        modifier = Modifier.padding(WindowInsets.safeDrawing.asPaddingValues())
                     )
+                }) {
+                    AppNavHost(navController = navController, modifier = Modifier.padding(it))
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BluetoothHidScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) {
+fun AppNavBar(navController: NavHostController, modifier: Modifier = Modifier) {
+    Row(
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        modifier = modifier
+    )
+    {
+        IconButton(onClick = {
+            navController.navigateSingleTop(Home.route)
+        }) {
+            Icon(
+                Icons.Filled.Home,
+                contentDescription = "Home"
+            )
+        }
+        IconButton(onClick = { navController.navigateSingleTop(Keyboard.route) }) {
+            Icon(
+                Icons.Filled.Keyboard,
+                contentDescription = "Keyboard"
+            )
+        }
+        IconButton(onClick = { navController.navigateSingleTop(Mouse.route) }) {
+            Icon(
+                Icons.Filled.Mouse,
+                contentDescription = "Mouse"
+            )
+        }
+    }
+}
+
+@Composable
+fun HomeScreen(
+    viewModel: MainViewModel,
+    onNavigateToKeyboard: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -175,125 +221,125 @@ fun BluetoothHidScreen(viewModel: MainViewModel, modifier: Modifier = Modifier) 
             color = if (isConnected) Color.Green else Color.Red
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "Keyboard", style = MaterialTheme.typography.titleMedium)
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { viewModel.sendChar('a') }) { Text("A") }
-            Button(onClick = { viewModel.sendChar('b') }) { Text("B") }
-            Button(onClick = { viewModel.sendChar(' ') }) { Text("Space") }
+        Button(onClick = onNavigateToKeyboard, modifier = Modifier.fillMaxWidth()) {
+            Text("Open Full Keyboard")
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = "Keyboard & Media", style = MaterialTheme.typography.titleMedium)
+
+        var textInput by remember { mutableStateOf("") }
+        androidx.compose.material3.OutlinedTextField(
+            value = textInput,
+            onValueChange = { newValue ->
+                if (newValue.length > textInput.length) {
+                    val char = newValue.last()
+                    viewModel.sendChar(char)
+                } else if (newValue.length < textInput.length) {
+                    viewModel.sendBackspace()
+                }
+                textInput = newValue
+            },
+            label = { Text("Type here (Special symbols & Shift supported)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())
+        ) {
             Button(onClick = { viewModel.sendEnter() }) { Text("Enter") }
             Button(onClick = { viewModel.sendBackspace() }) { Text("Bksp") }
+            Button(onClick = { viewModel.sendSpecialKey(41) }) { Text("Esc") } // Esc = 41
+            Button(onClick = { viewModel.sendSpecialKey(43) }) { Text("Tab") } // Tab = 43
+            Button(onClick = { viewModel.sendSpecialKey(58) }) { Text("F1") } // F1 = 58
+            Button(onClick = { viewModel.sendSpecialKey(59) }) { Text("F2") } // F2 = 59
+            Button(onClick = { viewModel.sendSpecialKey(60) }) { Text("F3") } // F3 = 60
+            Button(onClick = { viewModel.sendSpecialKey(61) }) { Text("F4") }
+            Button(onClick = { viewModel.sendSpecialKey(62) }) { Text("F5") }
+            Button(onClick = { viewModel.sendSpecialKey(63) }) { Text("F6") }
+            Button(onClick = { viewModel.sendSpecialKey(64) }) { Text("F7") }
+            Button(onClick = { viewModel.sendSpecialKey(65) }) { Text("F8") }
+            Button(onClick = { viewModel.sendSpecialKey(66) }) { Text("F9") }
+            Button(onClick = { viewModel.sendSpecialKey(67) }) { Text("F10") }
+            Button(onClick = { viewModel.sendSpecialKey(68) }) { Text("F11") }
+            Button(onClick = { viewModel.sendSpecialKey(69) }) { Text("F12") }
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())
+        ) {
+            Button(onClick = { viewModel.sendSpecialKey(82) }) { Text("↑") }
+            Button(onClick = { viewModel.sendSpecialKey(81) }) { Text("↓") }
+            Button(onClick = { viewModel.sendSpecialKey(80) }) { Text("←") }
+            Button(onClick = { viewModel.sendSpecialKey(79) }) { Text("→") }
+            Button(onClick = { viewModel.sendSpecialKey(74) }) { Text("Home") }
+            Button(onClick = { viewModel.sendSpecialKey(77) }) { Text("End") }
+            Button(onClick = { viewModel.sendSpecialKey(75) }) { Text("PgUp") }
+            Button(onClick = { viewModel.sendSpecialKey(78) }) { Text("PgDn") }
+            Button(onClick = { viewModel.sendSpecialKey(76) }) { Text("Del") }
+            Button(onClick = { viewModel.sendSpecialKey(73) }) { Text("Ins") }
+        }
+
+        Text(text = "Media Controls", style = MaterialTheme.typography.titleSmall)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())
+        ) {
+            Button(onClick = { viewModel.sendMediaControl(0x08) }) { Text("Play/Pause") }
+            Button(onClick = { viewModel.sendMediaControl(0x10) }) { Text("Mute") }
+            Button(onClick = { viewModel.sendMediaControl(0x40) }) { Text("Vol -") }
+            Button(onClick = { viewModel.sendMediaControl(0x20) }) { Text("Vol +") }
+            Button(onClick = { viewModel.sendMediaControl(0x02) }) { Text("Prev") }
+            Button(onClick = { viewModel.sendMediaControl(0x01) }) { Text("Next") }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
         Text(text = "Trackpad", style = MaterialTheme.typography.titleMedium)
 
-        MouseUi(
-            onScroll = { viewModel.scroll(it) },
-            moveMouse = { dx, dy ->
-                viewModel.moveMouse(dx, dy)
-            },
-            onZoom = { viewModel.zoom(it) },
-            onLeftClick = { viewModel.mouseClick(true) },
-            onRightClick = { viewModel.mouseClick(false) })
-
     }
 }
 
-@Composable
-private fun MouseUi(
-    modifier: Modifier = Modifier,
-    onScroll: (Int) -> Unit,
-    moveMouse: (Int, Int) -> Unit,
-    onZoom: (Boolean) -> Unit,
-    onLeftClick: () -> Unit,
-    onRightClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color.LightGray)
-    )
-    {
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-                .pointerInput(Unit) {
-                    var zoomAccumulator = 1f
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        // Handle Mouse Movement (Pan)
-                        if (pan.x != 0f || pan.y != 0f) {
-                            moveMouse(pan.x.toInt(), pan.y.toInt())
-                        }
 
-                        // Handle Zoom (Pinch)
-                        zoomAccumulator *= zoom
-                        if (zoomAccumulator > 1.2f) {
-                            onZoom(true) // Zoom In
-                            zoomAccumulator = 1f
-                        } else if (zoomAccumulator < 0.8f) {
-                            onZoom(false) // Zoom Out
-                            zoomAccumulator = 1f
-                        }
-                    }
-                }
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { onLeftClick },
-                        onDoubleTap = { onRightClick } // Right click on double tap for demo
-                    )
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Text("Drag to move mouse\nTap to click\nDouble tap to R-click\nPinch to Zoom")
+@Composable
+fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) {
+    val viewModel: MainViewModel = viewModel()
+    NavHost(navController, startDestination = appDestinations.first().route, modifier = modifier) {
+        composable(route = Home.route) {
+            HomeScreen(
+                viewModel,
+                onNavigateToKeyboard = { navController.navigateSingleTop(Keyboard.route) })
         }
 
-        Box(
-            modifier = Modifier
-                .width(1.dp)
-                .fillMaxHeight()
-                .background(Color.Gray)
-        )
-
-        Box(
-            modifier = Modifier
-                .width(50.dp)
-                .fillMaxHeight()
-                .background(Color.DarkGray.copy(alpha = 0.1f))
-                .pointerInput(Unit) {
-                    var accumulatedY = 0f
-                    detectDragGestures { change, dragAmount ->
-                        change.consume()
-                        accumulatedY += dragAmount.y
-                        val steps = -(accumulatedY / 60).toInt()
-                        if (steps != 0) {
-                            onScroll(steps)
-                            accumulatedY += (steps * 60) // Adding because steps is negative of accumulatedY/60
-                        }
-                    }
+        composable(route = Keyboard.route) {
+            KeyboardScreen(
+                onSendSpecialKey = { keyCode, modifier ->
+                    viewModel.sendSpecialKey(keyCode, modifier)
                 },
-            contentAlignment = Alignment.Center
-        ) {
-            Text("Scroll", modifier = Modifier.rotate(90f))
+                onBack = { navController.navigateSingleTop(Home.route) }
+            )
+        }
+
+        composable(route = Mouse.route) {
+            MouseScreen(
+                onScroll = { viewModel.scroll(it) },
+                moveMouse = { dx, dy ->
+                    viewModel.moveMouse(dx, dy)
+                },
+                onZoom = { viewModel.zoom(it) },
+                onLeftClick = { viewModel.mouseClick(true) },
+                onRightClick = { viewModel.mouseClick(false) })
         }
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun MouseUiPreview() {
-    BlutoothAssistantTheme {
-        MouseUi(
-            onScroll = {},
-            moveMouse = { x, y -> Unit },
-            onZoom = {},
-            onLeftClick = {},
-            onRightClick = {})
+fun NavHostController.navigateSingleTop(route: String) {
+    this.navigate(route) {
+        popUpTo(this@navigateSingleTop.graph.findStartDestination().id) {
+            saveState = true
+        }
+        launchSingleTop = true
+        restoreState = true
     }
 }
