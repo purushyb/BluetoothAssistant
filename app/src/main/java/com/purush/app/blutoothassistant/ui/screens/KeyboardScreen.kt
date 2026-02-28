@@ -1,20 +1,10 @@
-package com.purush.app.blutoothassistant
+package com.purush.app.blutoothassistant.ui.screens
 
-import android.app.Activity
-import android.bluetooth.BluetoothAssignedNumbers
 import android.content.pm.ActivityInfo
-import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,7 +40,7 @@ fun KeyboardScreen(
         onSendSpecialKey(keyCode, activeModifier)
     }
 
-    val context = LocalContext.current
+//    val context = LocalContext.current
 
 //    DisposableEffect(orientation) {
 //        // Find the activity from context
