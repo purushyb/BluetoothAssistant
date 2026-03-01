@@ -1,5 +1,6 @@
 package com.purush.app.blutoothassistant
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.bluetooth.BluetoothDevice
 import androidx.lifecycle.AndroidViewModel
@@ -19,6 +20,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
 
+    private val _connectedDeviceName = MutableStateFlow<String?>(null)
+    val connectedDeviceName: StateFlow<String?> = _connectedDeviceName.asStateFlow()
+
     private val _isServiceRunning = MutableStateFlow(false)
     val isServiceRunning: StateFlow<Boolean> = _isServiceRunning.asStateFlow()
 
@@ -29,6 +33,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (connected && device != null) {
                 lastDevice = device
                 prefs.edit { putString(LAST_DEVICE_ADDRESS_KEY, device.address) }
+                try {
+                    @SuppressLint("MissingPermission")
+                    val name = device.name
+                    _connectedDeviceName.value = name ?: "Unknown Device"
+                } catch(e: Exception) {
+                    _connectedDeviceName.value = "Unknown Device"
+                }
+            } else {
+                _connectedDeviceName.value = null
             }
         }
         bluetoothHidController.onServiceConnected = {
@@ -73,27 +86,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _isServiceRunning.value = false
     }
 
-    fun sendChar(char: Char) {
-        val (modifier, keycode) = mapCharToHidCode(char)
-        if (keycode != 0) {
-            bluetoothHidController.sendKeyboardReport(modifier, keycode)
-            bluetoothHidController.releaseKey()
-        }
-    }
-
-    fun sendEnter() {
-        bluetoothHidController.sendKeyboardReport(0, 40) // 40 is Enter
-        bluetoothHidController.releaseKey()
-    }
-    
-    fun sendBackspace() {
-        bluetoothHidController.sendKeyboardReport(0, 42) // 42 is Backspace
-        bluetoothHidController.releaseKey()
-    }
-
-    fun sendMediaControl(controlBit: Int) {
-        bluetoothHidController.sendMediaControlReport(controlBit)
-        bluetoothHidController.releaseMediaControl()
+    fun disconnect() {
+        bluetoothHidController.disconnect()
     }
 
     fun sendSpecialKey(keycode: Int, modifier: Int = 0) {

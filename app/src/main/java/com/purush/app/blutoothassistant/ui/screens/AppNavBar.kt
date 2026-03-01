@@ -27,9 +27,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.purush.app.blutoothassistant.AppDestination
+import com.purush.app.blutoothassistant.ui.theme.BlutoothAssistantTheme
 import java.util.Locale
 
 @Composable
@@ -41,8 +43,8 @@ fun AppNavBar(
 ) {
     Surface(
     modifier
-    .height(TabHeight)
-    .fillMaxWidth()
+        .height(TabHeight)
+        .fillMaxWidth()
     ) {
         Row(Modifier.selectableGroup()) {
             allScreens.forEach { screen ->
@@ -100,6 +102,18 @@ private fun AppNavTab(
             Spacer(Modifier.width(12.dp))
             Text(text.uppercase(Locale.getDefault()), color = tabTintColor)
         }
+    }
+}
+
+@Preview
+@Composable
+fun AppNavBarPreview() {
+    BlutoothAssistantTheme(){
+        AppNavBar(
+            allScreens = AppDestination.entries,
+            onTabSelected = {},
+            currentScreen = AppDestination.Home
+        )
     }
 }
 

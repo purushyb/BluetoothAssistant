@@ -84,6 +84,17 @@ class BluetoothHidController(private val context: Context) {
     }
 
     @SuppressLint("MissingPermission")
+    fun disconnect() {
+        hostDevice?.let {
+            try {
+                bluetoothHidDevice?.javaClass?.getMethod("disconnect", BluetoothDevice::class.java)?.invoke(bluetoothHidDevice, it)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error disconnecting", e)
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
     fun registerApp() {
         val sdpSettings = BluetoothHidDeviceAppSdpSettings(
             "Bluetooth Assistant",

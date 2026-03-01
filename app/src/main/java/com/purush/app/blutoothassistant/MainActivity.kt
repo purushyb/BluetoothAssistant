@@ -1,15 +1,15 @@
 package com.purush.app.blutoothassistant
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -38,13 +38,13 @@ class MainActivity : ComponentActivity() {
 
                 Scaffold(topBar = {
                     AppNavBar(
-                        modifier = Modifier.padding(WindowInsets.safeDrawing.asPaddingValues()),
-                        allScreens = appDestinations,
+                        modifier = Modifier.statusBarsPadding(),
+                        allScreens = AppDestination.entries,
                         onTabSelected = { screen ->
                             navController.navigateSingleTop(screen.route)
                         },
-                        currentScreen = appDestinations.find { it.route == currentScreen?.route }
-                            ?: Home
+                        currentScreen = AppDestination.entries.find { it.route == currentScreen?.route }
+                            ?: AppDestination.Home
                     )
                 }) {
                     AppNavHost(navController = navController, modifier = Modifier.padding(it))
@@ -58,23 +58,33 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) {
     val viewModel: MainViewModel = viewModel()
-    NavHost(navController, startDestination = Home.route, modifier = modifier) {
-        composable(route = Home.route) {
+    NavHost(navController, startDestination = "Home", modifier = modifier) {
+        composable(route = AppDestination.Home.route) {
+            val isConnected by viewModel.isConnected.collectAsState()
+            val connectedDeviceName by viewModel.connectedDeviceName.collectAsState()
+            val isServiceRunning by viewModel.isServiceRunning.collectAsState()
             HomeScreen(
-                viewModel,
-                onNavigateToKeyboard = { navController.navigateSingleTop(Keyboard.route) })
+                isConnected = isConnected,
+                connectedDeviceName = connectedDeviceName,
+                isServiceRunning = isServiceRunning,
+                startService = {
+                    Log.i("BluetoothMessage", "Connecting service")
+                    viewModel.startBluetoothService() },
+                stopService = { viewModel.stopBluetoothService() },
+                onDisconnect = { viewModel.disconnect() },
+                onResume = { viewModel.onResume() })
         }
 
-        composable(route = Keyboard.route) {
+        composable(route = AppDestination.Keyboard.route) {
             KeyboardScreen(
                 onSendSpecialKey = { keyCode, modifier ->
                     viewModel.sendSpecialKey(keyCode, modifier)
                 },
-                onBack = { navController.navigateSingleTop(Home.route) }
+                onBack = { navController.navigateSingleTop(AppDestination.Home.route) }
             )
         }
 
-        composable(route = Mouse.route) {
+        composable(route = AppDestination.Mouse.route) {
             MouseScreen(
                 onScroll = { viewModel.scroll(it) },
                 moveMouse = { dx, dy ->
@@ -102,6 +112,10 @@ fun NavHostController.navigateSingleTop(route: String) {
 @Composable
 fun AppNavBarPreview() {
     BlutoothAssistantTheme {
-        AppNavBar(allScreens = appDestinations, onTabSelected = {}, currentScreen = Home)
+        AppNavBar(
+            allScreens = AppDestination.entries,
+            onTabSelected = {},
+            currentScreen = AppDestination.Home
+        )
     }
 }
