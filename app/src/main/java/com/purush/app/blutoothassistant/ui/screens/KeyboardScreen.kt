@@ -40,24 +40,6 @@ fun KeyboardScreen(
         onSendSpecialKey(keyCode, activeModifier)
     }
 
-//    val context = LocalContext.current
-
-//    DisposableEffect(orientation) {
-//        // Find the activity from context
-//        val activity = context as? Activity // Simplified context lookup
-//        val originalOrientation = activity?.requestedOrientation
-//
-//        // Set new orientation
-//        activity?.requestedOrientation = orientation
-//
-//        // Restore original on dispose
-//        onDispose {
-//            if (originalOrientation != null) {
-//                activity.requestedOrientation = originalOrientation
-//            }
-//        }
-//    }
-
     Column(
         modifier = modifier
             .fillMaxSize()

@@ -119,6 +119,7 @@ fun MouseScreen(
                     .padding(16.dp)
                     .weight(1f)
                     .height(60.dp)
+                    .clip(RoundedCornerShape(8.dp))
                     .background(Color.LightGray)
                     .clickable(onClick = onLeftClick),
                 contentAlignment = Alignment.Center
@@ -128,6 +129,7 @@ fun MouseScreen(
                     .padding(16.dp)
                     .weight(1f)
                     .height(60.dp)
+                    .clip(RoundedCornerShape(8.dp))
                     .background(Color.LightGray)
                     .clickable(onClick = onRightClick),
                 contentAlignment = Alignment.Center
