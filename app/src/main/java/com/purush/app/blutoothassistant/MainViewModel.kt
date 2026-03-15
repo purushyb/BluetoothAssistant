@@ -121,6 +121,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         bluetoothHidController.sendMouseReport(0, 0, false, false)
     }
 
+    fun sendMediaCommand(command: Int) {
+        bluetoothHidController.sendMediaControlReport(command)
+        bluetoothHidController.releaseMediaControl()
+    }
+
+    // Media constants matching the HID report descriptor bitmask
+    object MediaCommands {
+        const val NEXT = 0x01
+        const val PREVIOUS = 0x02
+        const val STOP = 0x04
+        const val PLAY_PAUSE = 0x08
+        const val MUTE = 0x10
+        const val VOL_UP = 0x20
+        const val VOL_DOWN = 0x40
+    }
+
+    fun sendRemoteKey(keycode: Int) {
+        // Remote keys are usually standard keyboard keys for Android/TV boxes
+        // or specialized consumer control keys. Here we use keyboard keys for simplicity.
+        sendSpecialKey(keycode)
+    }
+
     // Returns Pair(modifier, keycode)
     private fun mapCharToHidCode(c: Char): Pair<Int, Int> {
         val isShift = c.isUpperCase()

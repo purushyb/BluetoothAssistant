@@ -23,7 +23,9 @@ import androidx.navigation.compose.rememberNavController
 import com.purush.app.blutoothassistant.ui.screens.AppNavBar
 import com.purush.app.blutoothassistant.ui.screens.HomeScreen
 import com.purush.app.blutoothassistant.ui.screens.KeyboardScreen
+import com.purush.app.blutoothassistant.ui.screens.MediaScreen
 import com.purush.app.blutoothassistant.ui.screens.MouseScreen
+import com.purush.app.blutoothassistant.ui.screens.RemoteScreen
 import com.purush.app.blutoothassistant.ui.theme.BlutoothAssistantTheme
 
 class MainActivity : ComponentActivity() {
@@ -93,6 +95,22 @@ fun AppNavHost(navController: NavHostController, modifier: Modifier = Modifier) 
                 onZoom = { viewModel.zoom(it) },
                 onLeftClick = { viewModel.mouseClick(true) },
                 onRightClick = { viewModel.mouseClick(false) })
+        }
+
+        composable(route = AppDestination.Media.route) {
+            MediaScreen(
+                onMediaCommand = { command ->
+                    viewModel.sendMediaCommand(command)
+                }
+            )
+        }
+
+        composable(route = AppDestination.Remote.route) {
+            RemoteScreen(
+                onRemoteKey = { keycode ->
+                    viewModel.sendRemoteKey(keycode)
+                }
+            )
         }
     }
 }
